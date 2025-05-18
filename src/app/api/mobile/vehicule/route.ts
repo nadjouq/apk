@@ -18,6 +18,15 @@ export async function GET() {
   try {
     console.log('Début de la récupération des véhicules...');
     
+    // D'abord, vérifions les structures disponibles
+    const structures = await prisma.structure.findMany({
+      select: {
+        code_structure: true,
+        designation: true,
+      },
+    });
+    console.log('Structures disponibles:', JSON.stringify(structures, null, 2));
+
     const vehicles = await prisma.vehicule.findMany({
       select: {
         code_vehicule: true,
@@ -53,7 +62,9 @@ export async function GET() {
           select: {
             structure: {
               select: {
+                code_structure: true,
                 designation: true,
+                type_structure_hierachique: true,
               },
             },
           },
@@ -72,24 +83,34 @@ export async function GET() {
     });
 
     console.log('Nombre de véhicules trouvés:', vehicles.length);
-    console.log('Premier véhicule:', JSON.stringify(vehicles[0], null, 2));
+    if (vehicles.length > 0) {
+      console.log('Premier véhicule complet:', JSON.stringify(vehicles[0], null, 2));
+      console.log('Structure du premier véhicule:', JSON.stringify(vehicles[0].affectations?.[0]?.structure, null, 2));
+    }
 
     // Transformer les données pour correspondre au format attendu par l'application mobile
-    const formattedVehicles = vehicles.map((vehicle: any) => ({
-      code: vehicle.code_vehicule,
-      matricule: vehicle.n_immatriculation,
-      marque: vehicle.FK_vehicule_REF_type?.FK_type_REF_marque?.designation || '',
-      type: vehicle.FK_vehicule_REF_type?.designation || '',
-      statut: vehicle.historique_status?.[0]?.status?.designation || '',
-      structure: vehicle.affectations?.[0]?.structure?.designation || 'Non affecté',
-      kmTotal: vehicle.kilo_heure?.[0]?.kilo_parcouru_heure_fonctionnement?.toString() || '0',
-      derniereMaj: vehicle.kilo_heure?.[0]?.date?.toString() || 'Non disponible',
-    }));
+    const formattedVehicles = vehicles.map((vehicle: any) => {
+      const structure = vehicle.affectations?.[0]?.structure;
+      console.log('Structure avant formatage:', JSON.stringify(structure, null, 2));
+      
+      return {
+        code: vehicle.code_vehicule,
+        matricule: vehicle.n_immatriculation,
+        marque: vehicle.FK_vehicule_REF_type?.FK_type_REF_marque?.designation || '',
+        type: vehicle.FK_vehicule_REF_type?.designation || '',
+        statut: vehicle.historique_status?.[0]?.status?.designation || '',
+        structure: structure?.designation || 'Non affecté',
+        kmTotal: vehicle.kilo_heure?.[0]?.kilo_parcouru_heure_fonctionnement?.toString() || '0',
+        derniereMaj: vehicle.kilo_heure?.[0]?.date?.toString() || 'Non disponible',
+      };
+    });
 
-    console.log('Véhicules formatés:', JSON.stringify(formattedVehicles[0], null, 2));
+    if (formattedVehicles.length > 0) {
+      console.log('Premier véhicule formaté:', JSON.stringify(formattedVehicles[0], null, 2));
+    }
 
     return NextResponse.json(formattedVehicles, { headers: corsHeaders });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur détaillée lors de la récupération des véhicules:', error);
     return NextResponse.json(
       { error: `Erreur lors de la récupération des véhicules: ${error.message}` },

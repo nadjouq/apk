@@ -92,76 +92,234 @@ class _VehiclePageState extends State<VehiclePage> {
     }
   }
 
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'en service':
+        return Colors.green;
+      case 'en maintenance':
+        return Colors.orange;
+      case 'hors service':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Gestion des Véhicules'),
+        title: const Text(
+          'Gestion des Véhicules',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: const Color(0xFF002866),
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: fetchVehicles,
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        error!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: fetchVehicles,
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowColor:
-                          MaterialStateProperty.all(const Color(0xFF002866)),
-                      headingTextStyle: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                      columns: const [
-                        DataColumn(label: Text('Code')),
-                        DataColumn(label: Text('Matricule')),
-                        DataColumn(label: Text('Marque')),
-                        DataColumn(label: Text('Type')),
-                        DataColumn(label: Text('Statut')),
-                        DataColumn(label: Text('Structure')),
-                        DataColumn(label: Text('Km total')),
-                        DataColumn(label: Text('Dernière MAJ')),
-                      ],
-                      rows: vehicles.map((vehicle) {
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(vehicle.code)),
-                            DataCell(Text(vehicle.matricule)),
-                            DataCell(Text(vehicle.marque)),
-                            DataCell(Text(vehicle.type)),
-                            DataCell(Text(vehicle.statut)),
-                            DataCell(Text(vehicle.structure)),
-                            DataCell(Text(vehicle.kmTotal)),
-                            DataCell(Text(vehicle.derniereMaj)),
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                  ),
+      body: RefreshIndicator(
+        onRefresh: fetchVehicles,
+        child: isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF002866)),
                 ),
+              )
+            : error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          error!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: fetchVehicles,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF002866),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: const Text('Réessayer'),
+                        ),
+                      ],
+                    ),
+                  )
+                : vehicles.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Aucun véhicule trouvé',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: vehicles.length,
+                        itemBuilder: (context, index) {
+                          final vehicle = vehicles[index];
+                          return Card(
+                            elevation: 2,
+                            margin: const EdgeInsets.only(bottom: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white,
+                                    Colors.blue.shade50,
+                                  ],
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            vehicle.matricule,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF002866),
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                _getStatusColor(vehicle.statut)
+                                                    .withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: _getStatusColor(
+                                                  vehicle.statut),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            vehicle.statut,
+                                            style: TextStyle(
+                                              color: _getStatusColor(
+                                                  vehicle.statut),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildInfoRow(
+                                      Icons.directions_car,
+                                      'Type',
+                                      vehicle.type,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.business,
+                                      'Marque',
+                                      vehicle.marque,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.qr_code,
+                                      'Code',
+                                      vehicle.code,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.location_city,
+                                      'Structure',
+                                      vehicle.structure,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.speed,
+                                      'Kilométrage',
+                                      '${vehicle.kmTotal} km',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.update,
+                                      'Dernière mise à jour',
+                                      vehicle.derniereMaj,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: const Color(0xFF002866),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
