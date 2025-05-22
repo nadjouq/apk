@@ -27,54 +27,50 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final Map<String, String> loginData = {
-        'username': _usernameController.text.trim(),
-        'password': _passwordController.text.trim(),
-      };
-
+      print('Tentative de connexion...');
       final response = await http.post(
-        Uri.parse('http://192.168.8.101:3001/api/auth'),
+        Uri.parse('http://192.168.8.110:3001/api/auth'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: json.encode(loginData),
+        body: json.encode({
+          'username': _usernameController.text.trim(),
+          'password': _passwordController.text.trim(),
+        }),
       );
 
+      print('Code de réponse: ${response.statusCode}');
+      print('Réponse du serveur: ${response.body}');
+
       if (response.statusCode == 200) {
-        try {
-          final data = json.decode(response.body);
+        final data = json.decode(response.body);
 
-          if (data['success'] == true) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('token', data['token']);
-            await prefs.setString('user', json.encode(data['user']));
+        if (data['success'] == true) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', data['token']);
+          await prefs.setString('user', json.encode(data['user']));
 
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardPage()),
-              );
-            }
-          } else {
-            setState(() {
-              _errorMessage = data['error'] ?? "Erreur d'authentification";
-            });
+          print('Connexion réussie, token stocké');
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DashboardPage()),
+            );
           }
-        } catch (e) {
-          setState(() {
-            _errorMessage = "Erreur lors du traitement de la réponse";
-          });
+        } else {
+          throw Exception(data['error'] ?? 'Erreur d\'authentification');
         }
       } else {
-        final data = json.decode(response.body);
-        setState(() {
-          _errorMessage = data['error'] ?? "Erreur de connexion";
-        });
+        final error =
+            json.decode(response.body)['error'] ?? 'Erreur de connexion';
+        throw Exception(error);
       }
     } catch (e) {
+      print('Erreur de connexion: $e');
       setState(() {
-        _errorMessage = 'Erreur de connexion au serveur';
+        _errorMessage = e.toString();
       });
     } finally {
       if (mounted) {

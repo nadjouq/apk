@@ -5,103 +5,129 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 
-class Vehicle {
-  final String code;
-  final String matricule;
-  final String marque;
-  final String type;
-  final String statut;
+class User {
+  final int id;
+  final String nom;
+  final String prenom;
+  final String email;
+  final String role;
+  final String droits;
   final String structure;
-  final String kmTotal;
-  final String derniereMaj;
+  final String username;
+  final String telephone;
+  final String methodeAuth;
+  final bool estAdmin;
 
-  Vehicle({
-    required this.code,
-    required this.matricule,
-    required this.marque,
-    required this.type,
-    required this.statut,
+  User({
+    required this.id,
+    required this.nom,
+    required this.prenom,
+    required this.email,
+    required this.role,
+    required this.droits,
     required this.structure,
-    required this.kmTotal,
-    required this.derniereMaj,
+    required this.username,
+    required this.telephone,
+    required this.methodeAuth,
+    required this.estAdmin,
   });
 
-  factory Vehicle.fromJson(Map<String, dynamic> json) {
-    return Vehicle(
-      code: json['code'] ?? '',
-      matricule: json['matricule'] ?? '',
-      marque: json['marque'] ?? '',
-      type: json['type'] ?? '',
-      statut: json['statut'] ?? '',
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] ?? 0,
+      nom: json['nom'] ?? '',
+      prenom: json['prenom'] ?? '',
+      email: json['email'] ?? '',
+      role: json['role'] ?? '',
+      droits: json['droits'] ?? '',
       structure: json['structure'] ?? '',
-      kmTotal: json['kmTotal'] ?? '',
-      derniereMaj: json['derniereMaj'] ?? '',
+      username: json['username'] ?? '',
+      telephone: json['telephone'] ?? '',
+      methodeAuth: json['methodeAuth'] ?? '',
+      estAdmin: json['estAdmin'] ?? false,
     );
   }
 }
 
-class VehiclePage extends StatefulWidget {
-  const VehiclePage({super.key});
+class UsersPage extends StatefulWidget {
+  const UsersPage({super.key});
 
   @override
-  State<VehiclePage> createState() => _VehiclePageState();
+  State<UsersPage> createState() => _UsersPageState();
 }
 
-class _VehiclePageState extends State<VehiclePage> {
-  List<Vehicle> vehicles = [];
+class _UsersPageState extends State<UsersPage> {
+  List<User> users = [];
   bool isLoading = true;
   String? error;
 
   @override
   void initState() {
     super.initState();
-    fetchVehicles();
+    fetchUsers();
   }
 
-  Future<void> fetchVehicles() async {
+  Future<void> fetchUsers() async {
     setState(() {
       isLoading = true;
       error = null;
     });
 
     try {
-      print('Tentative de connexion au serveur...');
-      print('URL: http://192.168.8.110:3001/api/mobile/vehicule');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null) {
+        print('Token manquant');
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          );
+        }
+        return;
+      }
+
+      print('Tentative de connexion à l\'API utilisateurs...');
+      print('Token présent: ${token.isNotEmpty}');
 
       final response = await http.get(
-        Uri.parse('http://192.168.8.110:3001/api/mobile/vehicule'),
+        Uri.parse('http://192.168.8.110:3001/api/mobile/users'),
         headers: {
+          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      );
 
       print('Code de réponse: ${response.statusCode}');
-      print('Headers de la réponse: ${response.headers}');
-      print('Corps de la réponse: ${response.body}');
+      print('Réponse du serveur: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        print('Données reçues: ${data.length} véhicules');
-        if (data.isNotEmpty) {
-          print('Premier véhicule: ${data[0]}');
+      if (response.statusCode == 401) {
+        print('Session expirée, redirection vers la page de connexion');
+        await prefs.clear();
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          );
         }
-
-        setState(() {
-          vehicles = data.map((json) => Vehicle.fromJson(json)).toList();
-          isLoading = false;
-        });
-      } else {
-        print('Erreur HTTP: ${response.statusCode}');
-        print('Message d\'erreur: ${response.body}');
-        setState(() {
-          error = 'Erreur ${response.statusCode}: ${response.body}';
-          isLoading = false;
-        });
+        return;
       }
-    } catch (e) {
-      print('Exception détaillée: $e');
+
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Erreur lors de la récupération des utilisateurs: ${response.statusCode}');
+      }
+
+      final List<dynamic> data = json.decode(response.body);
       setState(() {
-        error = 'Erreur de connexion au serveur: $e';
+        users = data.map((json) => User.fromJson(json)).toList();
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Erreur détaillée: $e');
+      setState(() {
+        error = 'Erreur lors de la récupération des utilisateurs: $e';
         isLoading = false;
       });
     }
@@ -109,12 +135,12 @@ class _VehiclePageState extends State<VehiclePage> {
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'en service':
+      case 'actif':
         return Colors.green;
-      case 'en maintenance':
-        return Colors.orange;
-      case 'hors service':
+      case 'inactif':
         return Colors.red;
+      case 'bloqué':
+        return Colors.orange;
       default:
         return Colors.grey;
     }
@@ -126,7 +152,7 @@ class _VehiclePageState extends State<VehiclePage> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
-          'Gestion des Véhicules',
+          'Gestion des Utilisateurs',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -137,12 +163,12 @@ class _VehiclePageState extends State<VehiclePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: fetchVehicles,
+            onPressed: fetchUsers,
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: fetchVehicles,
+        onRefresh: fetchUsers,
         child: isLoading
             ? const Center(
                 child: CircularProgressIndicator(
@@ -170,7 +196,7 @@ class _VehiclePageState extends State<VehiclePage> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: fetchVehicles,
+                          onPressed: fetchUsers,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF002866),
                             padding: const EdgeInsets.symmetric(
@@ -183,10 +209,10 @@ class _VehiclePageState extends State<VehiclePage> {
                       ],
                     ),
                   )
-                : vehicles.isEmpty
+                : users.isEmpty
                     ? const Center(
                         child: Text(
-                          'Aucun véhicule trouvé',
+                          'Aucun utilisateur trouvé',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey,
@@ -195,9 +221,9 @@ class _VehiclePageState extends State<VehiclePage> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: vehicles.length,
+                        itemCount: users.length,
                         itemBuilder: (context, index) {
-                          final vehicle = vehicles[index];
+                          final user = users[index];
                           return Card(
                             elevation: 2,
                             margin: const EdgeInsets.only(bottom: 16),
@@ -227,7 +253,7 @@ class _VehiclePageState extends State<VehiclePage> {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            vehicle.matricule,
+                                            '${user.prenom} ${user.nom}',
                                             style: const TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -241,21 +267,25 @@ class _VehiclePageState extends State<VehiclePage> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color:
-                                                _getStatusColor(vehicle.statut)
-                                                    .withOpacity(0.1),
+                                            color: user.estAdmin
+                                                ? Colors.green.withOpacity(0.1)
+                                                : Colors.blue.withOpacity(0.1),
                                             borderRadius:
                                                 BorderRadius.circular(20),
                                             border: Border.all(
-                                              color: _getStatusColor(
-                                                  vehicle.statut),
+                                              color: user.estAdmin
+                                                  ? Colors.green
+                                                  : Colors.blue,
                                             ),
                                           ),
                                           child: Text(
-                                            vehicle.statut,
+                                            user.estAdmin
+                                                ? 'Administrateur'
+                                                : 'Utilisateur',
                                             style: TextStyle(
-                                              color: _getStatusColor(
-                                                  vehicle.statut),
+                                              color: user.estAdmin
+                                                  ? Colors.green
+                                                  : Colors.blue,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -264,39 +294,45 @@ class _VehiclePageState extends State<VehiclePage> {
                                     ),
                                     const SizedBox(height: 12),
                                     _buildInfoRow(
-                                      Icons.directions_car,
-                                      'Type',
-                                      vehicle.type,
+                                      Icons.email,
+                                      'Email',
+                                      user.email,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.work,
+                                      'Rôle',
+                                      user.role,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.security,
+                                      'Droits',
+                                      user.droits,
                                     ),
                                     const SizedBox(height: 8),
                                     _buildInfoRow(
                                       Icons.business,
-                                      'Marque',
-                                      vehicle.marque,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _buildInfoRow(
-                                      Icons.qr_code,
-                                      'Code',
-                                      vehicle.code,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _buildInfoRow(
-                                      Icons.location_city,
                                       'Structure',
-                                      vehicle.structure,
+                                      user.structure,
                                     ),
                                     const SizedBox(height: 8),
                                     _buildInfoRow(
-                                      Icons.speed,
-                                      'Kilométrage',
-                                      '${vehicle.kmTotal} km',
+                                      Icons.person,
+                                      'Nom d\'utilisateur',
+                                      user.username,
                                     ),
                                     const SizedBox(height: 8),
                                     _buildInfoRow(
-                                      Icons.update,
-                                      'Dernière mise à jour',
-                                      vehicle.derniereMaj,
+                                      Icons.phone,
+                                      'Téléphone',
+                                      user.telephone,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.security,
+                                      'Méthode d\'authentification',
+                                      user.methodeAuth,
                                     ),
                                   ],
                                 ),

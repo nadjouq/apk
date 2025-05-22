@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_page.dart';
 import 'vehicle_page.dart';
+import 'users_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -7,103 +10,60 @@ class DashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Tableau de bord'),
+        title: const Text(
+          'Tableau de Bord',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: const Color(0xFF002866),
-        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: _logout,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // En-tête avec le nom de l'utilisateur
-            const Card(
-              color: Color(0xFFD3D31B),
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Color(0xFF002866),
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Bienvenue',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF002866),
-                          ),
-                        ),
-                        Text(
-                          'Tableau de bord NAFTAL',
-                          style: TextStyle(
-                            color: Color(0xFF002866),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Section des statistiques rapides
             const Text(
-              'Statistiques rapides',
+              'Bienvenue',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF002866),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: 2,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
+              childAspectRatio: 1.5,
               children: [
                 _buildStatCard(
-                  'Véhicules',
-                  '12',
-                  Icons.directions_car,
-                  Colors.blue,
-                ),
+                    'Véhicules', '25', Icons.directions_car, Colors.blue),
                 _buildStatCard(
-                  'Alertes',
-                  '5',
-                  Icons.warning,
-                  Colors.orange,
-                ),
+                    'Utilisateurs', '10', Icons.people, Colors.green),
                 _buildStatCard(
-                  'Documents',
-                  '8',
-                  Icons.description,
-                  Colors.green,
-                ),
-                _buildStatCard(
-                  'Demandes',
-                  '3',
-                  Icons.pending_actions,
-                  Colors.purple,
-                ),
+                    'Structures', '5', Icons.business, Colors.orange),
+                _buildStatCard('Maintenances', '8', Icons.build, Colors.purple),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Section des actions rapides
+            const SizedBox(height: 32),
             const Text(
-              'Actions rapides',
+              'Actions Rapides',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF002866),
               ),
@@ -111,7 +71,7 @@ class DashboardPage extends StatelessWidget {
             const SizedBox(height: 16),
             _buildActionButton(
               context,
-              'Gérer les véhicules',
+              'Gérer les Véhicules',
               Icons.directions_car,
               () {
                 Navigator.push(
@@ -120,22 +80,34 @@ class DashboardPage extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             _buildActionButton(
               context,
-              'Voir les alertes',
-              Icons.warning,
+              'Gérer les Utilisateurs',
+              Icons.people,
               () {
-                // TODO: Navigation vers les alertes
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UsersPage()),
+                );
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             _buildActionButton(
               context,
-              'Documents',
-              Icons.description,
+              'Gérer les Structures',
+              Icons.business,
               () {
-                // TODO: Navigation vers les documents
+                // TODO: Implémenter la navigation vers la page des structures
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              context,
+              'Gérer les Maintenances',
+              Icons.build,
+              () {
+                // TODO: Implémenter la navigation vers la page des maintenances
               },
             ),
           ],
@@ -198,5 +170,9 @@ class DashboardPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _logout() {
+    // Implement the logout functionality
   }
 }
